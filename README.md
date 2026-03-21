@@ -42,15 +42,7 @@ Skill Hub 是一个面向 Claude Agent Skills 的轻量商店。
 
 ## 部署
 
-当前部署方式是“前端产物提前构建并提交，线上只部署这个仓库”。
-
-如果前端有更新，请先在 workspace 根目录执行：
-
-```bash
-bash ./scripts/build_frontend_to_backend.sh
-```
-
-然后构建镜像：
+构建镜像：
 
 ```bash
 cd backend
@@ -91,4 +83,4 @@ docker compose up --build -d
 
 - 挂载 [data](/Users/jewei/host_workspace/project/jewei/skills-hub-workspace/backend/data) 到持久化存储
 - 设置固定的 `APP_SECRET_KEY`
-- 每次发布前确认 `app/static` 已更新到最新前端产物
+- 发布前确认站点静态资源和服务代码都已准备完成
