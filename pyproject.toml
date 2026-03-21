@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "skill-hub-backend"
 version = "0.1.0"
@@ -16,6 +20,9 @@ dev = [
   "httpx>=0.28.1",
   "pytest>=8.4.1",
 ]
+
+[tool.setuptools]
+packages = ["app"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
