@@ -13,7 +13,7 @@ Skill Hub 是一个面向 Claude Agent Skills 的轻量商店。
 构建镜像：
 
 ```bash
-docker build -t skillhub-backend:latest .
+docker build -t skillhub:latest .
 ```
 
 运行容器：
@@ -22,7 +22,7 @@ docker build -t skillhub-backend:latest .
 docker run --rm -p 8000:8000 \
   -v "$(pwd)/data:/app/data" \
   -e APP_SECRET_KEY="replace-with-a-long-random-secret" \
-  skillhub-backend:latest
+  skillhub:latest
 ```
 
 或者使用 Docker Compose：
