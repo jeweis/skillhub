@@ -1,0 +1,1 @@
+"""Skills Hub backend package."""
