@@ -2,4 +2,21 @@
 __pycache__/
 .pytest_cache/
 *.pyc
+
+# Python caches
+*.pyo
+*.pyd
+.python-version
+
+# Local data and generated artifacts
 data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/archives/
+app/static/
+
+# Test / tool caches
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/

@@ -1,13 +1,14 @@
 import io
 import re
+import sqlite3
 import zipfile
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 
 from app.config import ARCHIVES_DIR
-from app.database import Database
 from app.models import (
+    AuthUser,
     SkillArchiveMetadata,
     SkillDetail,
     SkillListItem,
@@ -19,33 +20,38 @@ PREVIEW_BASENAMES = ("SKILL.md", "README.md", "REFERENCE.md")
 
 
 class SkillRepository:
-    def __init__(self, database: Database):
+    def __init__(self, database):
         self.database = database
 
     def list_skills(self, query: str | None = None) -> list[SkillListItem]:
         sql = """
-            SELECT s.id, s.slug, s.name, s.description, s.archive_filename,
-                   s.downloads, s.created_at,
-                   GROUP_CONCAT(spf.path, '||') AS preview_paths
+            SELECT
+                s.id,
+                s.slug,
+                s.name,
+                s.description,
+                s.archive_filename,
+                s.downloads,
+                s.created_at,
+                s.publisher_name,
+                GROUP_CONCAT(spf.path, '||') AS preview_paths
             FROM skills s
             LEFT JOIN skill_preview_files spf ON spf.skill_id = s.id
             WHERE 1 = 1
         """
         params: list[object] = []
         if query:
+            needle = f"%{query.strip()}%"
             sql += """
                 AND (
                     s.name LIKE ?
                     OR s.slug LIKE ?
                     OR s.description LIKE ?
+                    OR COALESCE(s.publisher_name, '') LIKE ?
                 )
             """
-            needle = f"%{query.strip()}%"
-            params.extend([needle, needle, needle])
-        sql += """
-            GROUP BY s.id
-            ORDER BY s.created_at DESC
-        """
+            params.extend([needle, needle, needle, needle])
+        sql += " GROUP BY s.id ORDER BY s.created_at DESC"
         with self.database.connect() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [
@@ -62,8 +68,16 @@ class SkillRepository:
         with self.database.connect() as conn:
             row = conn.execute(
                 """
-                SELECT id, slug, name, description, archive_filename,
-                       downloads, created_at, updated_at
+                SELECT
+                    id,
+                    slug,
+                    name,
+                    description,
+                    archive_filename,
+                    downloads,
+                    created_at,
+                    updated_at,
+                    publisher_name
                 FROM skills
                 WHERE slug = ?
                 """,
@@ -99,11 +113,7 @@ class SkillRepository:
     def get_archive_metadata(self, slug: str) -> SkillArchiveMetadata:
         with self.database.connect() as conn:
             row = conn.execute(
-                """
-                SELECT slug, archive_filename
-                FROM skills
-                WHERE slug = ?
-                """,
+                "SELECT slug, archive_filename FROM skills WHERE slug = ?",
                 (slug,),
             ).fetchone()
             if row is None:
@@ -115,32 +125,21 @@ class SkillRepository:
         )
 
     async def inspect_skill_archive(self, upload: UploadFile) -> SkillUploadResponse:
-        filename = upload.filename or "skill.zip"
-        if not filename.lower().endswith(".zip"):
-            raise HTTPException(status_code=400, detail="Only .zip uploads are supported")
-
-        archive_bytes = await upload.read()
-        if not archive_bytes:
-            raise HTTPException(status_code=400, detail="Uploaded file is empty")
-
+        archive_bytes, filename = await self._read_archive(upload)
         parsed = self._parse_skill_archive(archive_bytes)
-        slug = self._slugify(parsed["name"])
         return SkillUploadResponse(
-            slug=slug,
+            slug=self._slugify(parsed["name"]),
             name=parsed["name"],
             description=parsed["description"],
             preview_paths=[item["path"] for item in parsed["preview_files"]],
         )
 
-    async def create_skill_from_zip(self, upload: UploadFile) -> SkillUploadResponse:
-        filename = upload.filename or "skill.zip"
-        if not filename.lower().endswith(".zip"):
-            raise HTTPException(status_code=400, detail="Only .zip uploads are supported")
-
-        archive_bytes = await upload.read()
-        if not archive_bytes:
-            raise HTTPException(status_code=400, detail="Uploaded file is empty")
-
+    async def create_skill_from_zip(
+        self,
+        upload: UploadFile,
+        current_user: AuthUser,
+    ) -> SkillUploadResponse:
+        archive_bytes, filename = await self._read_archive(upload)
         parsed = self._parse_skill_archive(archive_bytes)
         slug = self._slugify(parsed["name"])
         archive_path = self._write_archive(slug, filename, archive_bytes)
@@ -150,8 +149,15 @@ class SkillRepository:
                 cursor = conn.execute(
                     """
                     INSERT INTO skills (
-                        slug, name, description, archive_filename, archive_path, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        slug,
+                        name,
+                        description,
+                        archive_filename,
+                        archive_path,
+                        published_by_user_id,
+                        publisher_name,
+                        updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     """,
                     (
                         slug,
@@ -159,9 +165,11 @@ class SkillRepository:
                         parsed["description"],
                         Path(filename).name,
                         str(archive_path),
+                        current_user.id,
+                        current_user.display_name or current_user.username,
                     ),
                 )
-                skill_id = cursor.lastrowid
+                skill_id = int(cursor.lastrowid)
                 for preview_file in parsed["preview_files"]:
                     conn.execute(
                         """
@@ -170,6 +178,12 @@ class SkillRepository:
                         """,
                         (skill_id, preview_file["path"], preview_file["content"]),
                     )
+        except sqlite3.IntegrityError as exc:
+            archive_path.unlink(missing_ok=True)
+            raise HTTPException(
+                status_code=409,
+                detail="同名 Skill 已存在，请调整 SKILL.md 中的名称后重试",
+            ) from exc
         except Exception:
             archive_path.unlink(missing_ok=True)
             raise
@@ -205,6 +219,15 @@ class SkillRepository:
         if not archive_path.exists():
             raise HTTPException(status_code=404, detail="Archive file not found")
         return archive_path, row["archive_filename"]
+
+    async def _read_archive(self, upload: UploadFile) -> tuple[bytes, str]:
+        filename = upload.filename or "skill.zip"
+        if not filename.lower().endswith(".zip"):
+            raise HTTPException(status_code=400, detail="Only .zip uploads are supported")
+        archive_bytes = await upload.read()
+        if not archive_bytes:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty")
+        return archive_bytes, filename
 
     def _parse_skill_archive(self, archive_bytes: bytes) -> dict[str, object]:
         try:

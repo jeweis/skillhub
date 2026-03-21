@@ -1,7 +1,7 @@
 [project]
-name = "skills-hub-backend"
+name = "skill-hub-backend"
 version = "0.1.0"
-description = "Skills Hub MVP backend service"
+description = "Skill Hub MVP backend service"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

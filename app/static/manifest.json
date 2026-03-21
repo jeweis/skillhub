@@ -1,6 +1,6 @@
 {
-    "name": "Skills Hub",
-    "short_name": "Skills Hub",
+    "name": "Skill Hub",
+    "short_name": "Skill Hub",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFBF5",

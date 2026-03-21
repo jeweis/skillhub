@@ -1,1 +1,1 @@
-"""Skills Hub backend package."""
+"""Skill Hub backend package."""

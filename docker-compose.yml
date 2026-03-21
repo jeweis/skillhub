@@ -1,0 +1,13 @@
+services:
+  skillhub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: skillhub
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - APP_SECRET_KEY=${APP_SECRET_KEY:-}
+    restart: unless-stopped
