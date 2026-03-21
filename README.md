@@ -19,7 +19,10 @@ docker build -t skillhub:latest .
 运行容器：
 
 ```bash
-docker run --rm -p 9509:8000 \
+docker run -d \
+  --name skillhub \
+  --restart unless-stopped \
+  -p 9509:8000 \
   -v "$(pwd)/data:/app/data" \
   -e APP_SECRET_KEY="replace-with-a-long-random-secret" \
   skillhub:latest
