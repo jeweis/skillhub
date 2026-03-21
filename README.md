@@ -1,8 +1,40 @@
+<p align="center">
+  <img src="app/static/favicon.png" alt="Skill Hub logo" width="140" />
+</p>
+
 # Skill Hub
 
 Skill Hub 是一个面向 Claude Agent Skills 的轻量商店。
 
 用户可以在这里浏览、搜索、查看说明、下载 Skills；创作者可以登录后发布自己的 Skills；管理员可以管理账号并配置飞书登录。
+
+## 快速开始
+
+构建镜像：
+
+```bash
+docker build -t skillhub-backend:latest .
+```
+
+运行容器：
+
+```bash
+docker run --rm -p 8000:8000 \
+  -v "$(pwd)/data:/app/data" \
+  -e APP_SECRET_KEY="replace-with-a-long-random-secret" \
+  skillhub-backend:latest
+```
+
+或者使用 Docker Compose：
+
+```bash
+docker compose up --build -d
+```
+
+启动后可访问：
+
+- 首页：`http://127.0.0.1:8000`
+- API 文档：`http://127.0.0.1:8000/docs`
 
 ## 功能
 
@@ -13,13 +45,6 @@ Skill Hub 是一个面向 Claude Agent Skills 的轻量商店。
 - 登录后发布 Skill
 - 管理员创建账号
 - 管理员配置飞书登录
-
-## 使用方式
-
-启动后可访问：
-
-- 首页：`http://127.0.0.1:8000`
-- API 文档：`http://127.0.0.1:8000/docs`
 
 ## 账号与权限
 
@@ -39,38 +64,6 @@ Skill Hub 是一个面向 Claude Agent Skills 的轻量商店。
 - `Base URL`
 
 如果启用飞书登录，生产环境建议设置固定的 `APP_SECRET_KEY`，用于加密存储飞书 `App Secret`。
-
-## 部署
-
-构建镜像：
-
-```bash
-cd backend
-docker build -t skillhub-backend:latest .
-```
-
-运行容器：
-
-```bash
-cd backend
-docker run --rm -p 8000:8000 \
-  -v "$(pwd)/data:/app/data" \
-  -e APP_SECRET_KEY="replace-with-a-long-random-secret" \
-  skillhub-backend:latest
-```
-
-或者使用 Docker Compose：
-
-```bash
-cd backend
-docker compose up --build -d
-```
-
-部署后会同时提供：
-
-- 站点页面：`http://127.0.0.1:8000`
-- API：`http://127.0.0.1:8000/api/*`
-- Swagger：`http://127.0.0.1:8000/docs`
 
 ## 数据持久化
 
