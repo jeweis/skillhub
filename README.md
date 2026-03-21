@@ -19,7 +19,7 @@ docker build -t skillhub:latest .
 运行容器：
 
 ```bash
-docker run --rm -p 8000:8000 \
+docker run --rm -p 9509:8000 \
   -v "$(pwd)/data:/app/data" \
   -e APP_SECRET_KEY="replace-with-a-long-random-secret" \
   skillhub:latest
@@ -33,8 +33,8 @@ docker compose up --build -d
 
 启动后可访问：
 
-- 首页：`http://127.0.0.1:8000`
-- API 文档：`http://127.0.0.1:8000/docs`
+- 首页：`http://127.0.0.1:9509`
+- API 文档：`http://127.0.0.1:9509/docs`
 
 ## 功能
 
