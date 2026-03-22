@@ -94,3 +94,7 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 - 首页：`http://127.0.0.1:8000`
 - API 文档：`http://127.0.0.1:8000/docs`
+
+## License
+
+本项目采用 MIT License，详见 [LICENSE](/Users/jewei/host_workspace/project/jewei/skills-hub-workspace/backend/LICENSE)。
