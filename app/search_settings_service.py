@@ -16,8 +16,7 @@ class SearchSettings:
     provider: str
     base_url: str
     model: str | None
-    basic_auth_username: str | None
-    basic_auth_password: str | None
+    bearer_token: str | None
 
     @property
     def configured(self) -> bool:
@@ -34,8 +33,7 @@ class SearchSettingsService:
     _KEY_PROVIDER = "SEARCH_EMBEDDING_PROVIDER"
     _KEY_BASE_URL = "SEARCH_EMBEDDING_BASE_URL"
     _KEY_MODEL = "SEARCH_EMBEDDING_MODEL"
-    _KEY_BASIC_AUTH_USERNAME = "SEARCH_EMBEDDING_BASIC_AUTH_USERNAME"
-    _KEY_BASIC_AUTH_PASSWORD = "SEARCH_EMBEDDING_BASIC_AUTH_PASSWORD_ENCRYPTED"
+    _KEY_BEARER_TOKEN = "SEARCH_EMBEDDING_BEARER_TOKEN_ENCRYPTED"
 
     def __init__(self, database: Database):
         self.database = database
@@ -48,8 +46,7 @@ class SearchSettingsService:
             provider=config.provider,
             base_url=config.base_url,
             model=config.model,
-            basic_auth_username=config.basic_auth_username,
-            has_basic_auth_password=bool(config.basic_auth_password),
+            has_bearer_token=bool(config.bearer_token),
             configured=config.configured,
         )
 
@@ -58,22 +55,16 @@ class SearchSettingsService:
         provider = (self._get_setting(self._KEY_PROVIDER) or "ollama").strip().lower()
         base_url = (self._get_setting(self._KEY_BASE_URL) or "http://127.0.0.1:11434").strip()
         model = self._normalize(self._get_setting(self._KEY_MODEL))
-        basic_auth_username = self._normalize(
-            self._get_setting(self._KEY_BASIC_AUTH_USERNAME)
+        encoded_token = self._normalize(
+            self._get_setting(self._KEY_BEARER_TOKEN)
         )
-        encoded_password = self._normalize(
-            self._get_setting(self._KEY_BASIC_AUTH_PASSWORD)
-        )
-        basic_auth_password = (
-            self._crypto._decrypt(encoded_password) if encoded_password else None
-        )
+        bearer_token = self._crypto._decrypt(encoded_token) if encoded_token else None
         return SearchSettings(
             enabled=enabled,
             provider=provider or "ollama",
             base_url=base_url.rstrip("/"),
             model=model,
-            basic_auth_username=basic_auth_username,
-            basic_auth_password=basic_auth_password,
+            bearer_token=bearer_token,
         )
 
     def update_settings(self, body: SearchSettingsUpdateRequest) -> SearchSettingsView:
@@ -99,14 +90,8 @@ class SearchSettingsService:
                 self._normalize(body.model) or "",
                 now,
             )
-            self._upsert_setting(
-                conn,
-                self._KEY_BASIC_AUTH_USERNAME,
-                self._normalize(body.basic_auth_username) or "",
-                now,
-            )
-            if body.basic_auth_password is not None:
-                normalized = self._normalize(body.basic_auth_password)
+            if body.bearer_token is not None:
+                normalized = self._normalize(body.bearer_token)
                 encrypted = (
                     self._crypto._encrypt(normalized, conn=conn)
                     if normalized
@@ -114,7 +99,7 @@ class SearchSettingsService:
                 )
                 self._upsert_setting(
                     conn,
-                    self._KEY_BASIC_AUTH_PASSWORD,
+                    self._KEY_BEARER_TOKEN,
                     encrypted,
                     now,
                 )

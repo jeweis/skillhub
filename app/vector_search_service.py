@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 import logging
@@ -222,9 +221,9 @@ class VectorSearchService:
         payload: dict[str, object],
     ) -> dict[str, object]:
         headers = {"Content-Type": "application/json"}
-        basic_auth_header = VectorSearchService._build_basic_auth_header(config)
-        if basic_auth_header is not None:
-            headers["Authorization"] = basic_auth_header
+        bearer_header = VectorSearchService._build_bearer_header(config)
+        if bearer_header is not None:
+            headers["Authorization"] = bearer_header
         request = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
@@ -301,10 +300,8 @@ class VectorSearchService:
         return f"{collapsed[:max_length]}..."
 
     @staticmethod
-    def _build_basic_auth_header(config: SearchSettings) -> str | None:
-        username = (config.basic_auth_username or "").strip()
-        password = config.basic_auth_password or ""
-        if not username:
+    def _build_bearer_header(config: SearchSettings) -> str | None:
+        token = (config.bearer_token or "").strip()
+        if not token:
             return None
-        raw = f"{username}:{password}".encode("utf-8")
-        return f"Basic {base64.b64encode(raw).decode('utf-8')}"
+        return f"Bearer {token}"

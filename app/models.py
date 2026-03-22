@@ -127,8 +127,7 @@ class SearchSettingsView(BaseModel):
     provider: str
     base_url: str
     model: str | None = None
-    basic_auth_username: str | None = None
-    has_basic_auth_password: bool = False
+    has_bearer_token: bool = False
     configured: bool = False
 
 
@@ -137,8 +136,7 @@ class SearchSettingsUpdateRequest(BaseModel):
     provider: str = "ollama"
     base_url: str = "http://127.0.0.1:11434"
     model: str | None = None
-    basic_auth_username: str | None = None
-    basic_auth_password: str | None = None
+    bearer_token: str | None = None
 
 
 class MessageResponse(BaseModel):
