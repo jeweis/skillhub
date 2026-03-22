@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import logging
@@ -172,6 +173,7 @@ class VectorSearchService:
                 self._compact_payload(payload),
             )
             response = self._post_json(
+                config,
                 f"{config.base_url}/api/embed",
                 payload,
             )
@@ -199,6 +201,7 @@ class VectorSearchService:
             self._compact_payload(legacy_payload),
         )
         legacy = self._post_json(
+            config,
             f"{config.base_url}/api/embeddings",
             legacy_payload,
         )
@@ -213,11 +216,19 @@ class VectorSearchService:
         return [float(item) for item in embedding]
 
     @staticmethod
-    def _post_json(url: str, payload: dict[str, object]) -> dict[str, object]:
+    def _post_json(
+        config: SearchSettings,
+        url: str,
+        payload: dict[str, object],
+    ) -> dict[str, object]:
+        headers = {"Content-Type": "application/json"}
+        basic_auth_header = VectorSearchService._build_basic_auth_header(config)
+        if basic_auth_header is not None:
+            headers["Authorization"] = basic_auth_header
         request = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         try:
@@ -288,3 +299,12 @@ class VectorSearchService:
         if len(collapsed) <= max_length:
             return collapsed
         return f"{collapsed[:max_length]}..."
+
+    @staticmethod
+    def _build_basic_auth_header(config: SearchSettings) -> str | None:
+        username = (config.basic_auth_username or "").strip()
+        password = config.basic_auth_password or ""
+        if not username:
+            return None
+        raw = f"{username}:{password}".encode("utf-8")
+        return f"Basic {base64.b64encode(raw).decode('utf-8')}"
