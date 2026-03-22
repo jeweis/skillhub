@@ -140,6 +140,7 @@ def feishu_login(body: FeishuLoginRequest) -> AuthResponse:
         app_id=config.app_id or "",
         app_secret=config.app_secret or "",
         code=body.code,
+        redirect_uri=body.redirect_uri,
     )
     user_info = feishu_auth_service.get_user_info(
         base_url=config.base_url,

@@ -72,6 +72,7 @@ class LoginRequest(BaseModel):
 
 class FeishuLoginRequest(BaseModel):
     code: str
+    redirect_uri: str | None = None
 
 
 class AuthResponse(BaseModel):

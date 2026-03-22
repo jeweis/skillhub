@@ -34,8 +34,108 @@
 
   <title>Skill Hub</title>
   <link rel="manifest" href="manifest.json">
+
+  <script
+    type="text/javascript"
+    src="https://lf1-cdn-tos.bytegoofy.com/goofy/lark/op/h5-js-sdk-1.5.26.js"
+  ></script>
 </head>
 <body>
+  <script>
+    (function () {
+      function isFeishuRuntime() {
+        if (!window.tt) {
+          return false;
+        }
+        return (
+          typeof window.tt.requestAccess === "function" ||
+          typeof window.tt.requestAuthCode === "function"
+        );
+      }
+
+      function waitForRuntimeReady() {
+        return new Promise(function (resolve, reject) {
+          if (!isFeishuRuntime()) {
+            reject(new Error("not_feishu_runtime"));
+            return;
+          }
+
+          if (window.h5sdk && typeof window.h5sdk.ready === "function") {
+            window.h5sdk.ready(function () {
+              resolve(window.tt);
+            });
+            return;
+          }
+
+          resolve(window.tt);
+        });
+      }
+
+      function callRequestAuthCode(tt, appId) {
+        return new Promise(function (resolve, reject) {
+          tt.requestAuthCode({
+            appId: appId,
+            success: function (res) {
+              if (res && res.code) {
+                resolve(res.code);
+                return;
+              }
+              reject(new Error("auth_code_missing"));
+            },
+            fail: function (err) {
+              reject(
+                new Error(
+                  "request_auth_code_failed:" +
+                    JSON.stringify(err || {})
+                )
+              );
+            },
+          });
+        });
+      }
+
+      function getAuthCode(appId) {
+        return waitForRuntimeReady().then(function (tt) {
+          return new Promise(function (resolve, reject) {
+            if (tt.requestAccess) {
+              tt.requestAccess({
+                appID: appId,
+                scopeList: [],
+                success: function (res) {
+                  if (res && res.code) {
+                    resolve(res.code);
+                    return;
+                  }
+                  reject(new Error("auth_code_missing"));
+                },
+                fail: function (err) {
+                  if (err && err.errno === 103) {
+                    callRequestAuthCode(tt, appId)
+                      .then(resolve)
+                      .catch(reject);
+                    return;
+                  }
+                  reject(
+                    new Error(
+                      "request_access_failed:" +
+                        JSON.stringify(err || {})
+                    )
+                  );
+                },
+              });
+              return;
+            }
+            callRequestAuthCode(tt, appId).then(resolve).catch(reject);
+          });
+        });
+      }
+
+      window.skillHubFeishuAuth = {
+        isFeishuRuntime: isFeishuRuntime,
+        getAuthCode: getAuthCode,
+      };
+    })();
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

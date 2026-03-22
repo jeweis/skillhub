@@ -24,6 +24,7 @@ class FeishuAuthService:
         app_id: str,
         app_secret: str,
         code: str,
+        redirect_uri: str | None = None,
     ) -> str:
         payload = {
             "grant_type": "authorization_code",
@@ -31,6 +32,9 @@ class FeishuAuthService:
             "client_secret": app_secret,
             "code": code,
         }
+        normalized_redirect_uri = (redirect_uri or "").strip()
+        if normalized_redirect_uri:
+            payload["redirect_uri"] = normalized_redirect_uri
         data = self._post_json(
             f"{base_url.rstrip('/')}/open-apis/authen/v2/oauth/token",
             payload,
@@ -112,4 +116,10 @@ class FeishuAuthService:
     def _assert_success(payload: dict[str, Any]) -> None:
         if payload.get("code") == 0:
             return
+        message = payload.get("msg")
+        if isinstance(message, str) and message.strip():
+            raise HTTPException(
+                status_code=400,
+                detail=f"飞书接口返回错误: {message.strip()}",
+            )
         raise HTTPException(status_code=400, detail="飞书接口返回了错误结果")
