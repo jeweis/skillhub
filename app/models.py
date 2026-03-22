@@ -18,6 +18,8 @@ class SkillListItem(BaseModel):
     created_at: datetime
     preview_paths: list[str] = Field(default_factory=list)
     publisher_name: str | None = None
+    published_by_user_id: int | None = None
+    tags: list[str] = Field(default_factory=list)
 
 
 class SkillDetail(SkillListItem):
@@ -30,12 +32,29 @@ class SkillUploadResponse(BaseModel):
     name: str
     description: str
     preview_paths: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+
+
+class SkillConflictDetail(BaseModel):
+    code: str
+    message: str
+    slug: str
+    can_overwrite: bool = False
 
 
 class SkillArchiveMetadata(BaseModel):
     skill_slug: str
     archive_filename: str
     download_url: str
+
+
+class SkillTagOption(BaseModel):
+    label: str
+    admin_only: bool = False
+
+
+class SkillTagListResponse(BaseModel):
+    items: list[SkillTagOption] = Field(default_factory=list)
 
 
 class AuthUser(BaseModel):
@@ -101,6 +120,21 @@ class FeishuSettingsUpdateRequest(BaseModel):
     app_id: str | None = None
     app_secret: str | None = None
     base_url: str = "https://open.feishu.cn"
+
+
+class SearchSettingsView(BaseModel):
+    enabled: bool
+    provider: str
+    base_url: str
+    model: str | None = None
+    configured: bool = False
+
+
+class SearchSettingsUpdateRequest(BaseModel):
+    enabled: bool
+    provider: str = "ollama"
+    base_url: str = "http://127.0.0.1:11434"
+    model: str | None = None
 
 
 class MessageResponse(BaseModel):

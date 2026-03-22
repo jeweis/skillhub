@@ -80,3 +80,17 @@ docker compose up --build -d
 - 挂载 [data](/Users/jewei/host_workspace/project/jewei/skills-hub-workspace/backend/data) 到持久化存储
 - 设置固定的 `APP_SECRET_KEY`
 - 发布前确认站点静态资源和服务代码都已准备完成
+
+## 本地启动
+
+如果你想直接在本地运行，而不是通过 Docker，可以执行：
+
+```bash
+uv sync
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+启动后可访问：
+
+- 首页：`http://127.0.0.1:8000`
+- API 文档：`http://127.0.0.1:8000/docs`

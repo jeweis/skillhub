@@ -73,6 +73,25 @@ class Database:
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(skill_id) REFERENCES skills(id) ON DELETE CASCADE
                 );
+
+                CREATE TABLE IF NOT EXISTS skill_tags (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    skill_id INTEGER NOT NULL,
+                    tag TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(skill_id, tag),
+                    FOREIGN KEY(skill_id) REFERENCES skills(id) ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS skill_embeddings (
+                    skill_id INTEGER PRIMARY KEY,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    vector_json TEXT NOT NULL,
+                    source_hash TEXT NOT NULL,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(skill_id) REFERENCES skills(id) ON DELETE CASCADE
+                );
                 """
             )
             self._ensure_column(

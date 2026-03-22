@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -22,13 +22,18 @@ from app.models import (
     FeishuStatusResponse,
     LoginRequest,
     MessageResponse,
+    SearchSettingsUpdateRequest,
+    SearchSettingsView,
     SkillArchiveMetadata,
     SkillDetail,
     SkillListItem,
+    SkillTagListResponse,
     SkillUploadResponse,
     UserListResponse,
 )
 from app.repository import SkillRepository
+from app.search_settings_service import SearchSettingsService
+from app.vector_search_service import VectorSearchService
 
 
 database = Database()
@@ -36,6 +41,8 @@ repository = SkillRepository(database)
 auth_service = AuthService(database)
 feishu_settings_service = FeishuSettingsService(database)
 feishu_auth_service = FeishuAuthService()
+search_settings_service = SearchSettingsService(database)
+vector_search_service = VectorSearchService(database, search_settings_service)
 _STATIC_DIR = FRONTEND_STATIC_DIR
 _INDEX_FILE = _STATIC_DIR / "index.html"
 
@@ -175,6 +182,27 @@ def update_feishu_settings(
     )
 
 
+@app.get("/api/admin/search-settings", response_model=SearchSettingsView)
+def get_search_settings(
+    _: AuthUser = Depends(get_admin_user),
+) -> SearchSettingsView:
+    return search_settings_service.get_settings_view()
+
+
+@app.put("/api/admin/search-settings", response_model=SearchSettingsView)
+def update_search_settings(
+    body: SearchSettingsUpdateRequest,
+    _: AuthUser = Depends(get_admin_user),
+) -> SearchSettingsView:
+    updated = search_settings_service.update_settings(body)
+    if updated.configured:
+        try:
+            vector_search_service.reindex_all_skills(repository)
+        except Exception:
+            pass
+    return updated
+
+
 @app.get("/api/admin/users", response_model=UserListResponse)
 def list_users(_: AuthUser = Depends(get_admin_user)) -> UserListResponse:
     return UserListResponse(items=auth_service.list_users())
@@ -197,8 +225,16 @@ def list_skills() -> list[SkillListItem]:
     return repository.list_skills()
 
 
+@app.get("/api/skill-tags", response_model=SkillTagListResponse)
+def list_skill_tags() -> SkillTagListResponse:
+    return repository.list_tag_options()
+
+
 @app.get("/api/skills/search", response_model=list[SkillListItem])
 def search_skills(q: str = Query(min_length=1, max_length=80)) -> list[SkillListItem]:
+    skill_ids = vector_search_service.search_skill_ids(q, repository)
+    if skill_ids:
+        return repository.list_skills_by_ids(skill_ids)
     return repository.list_skills(q)
 
 
@@ -210,9 +246,22 @@ def get_skill_detail(slug: str) -> SkillDetail:
 @app.post("/api/skills", response_model=SkillUploadResponse, status_code=201)
 async def create_skill(
     file: UploadFile = File(...),
+    tags_json: str | None = Form(default=None),
+    overwrite: bool = Form(default=False),
     current_user: AuthUser = Depends(get_current_user),
 ) -> SkillUploadResponse:
-    return await repository.create_skill_from_zip(file, current_user)
+    tags = repository.parse_tags_form(tags_json)
+    result = await repository.create_skill_from_zip(
+        file,
+        current_user,
+        tags=tags,
+        overwrite=overwrite,
+    )
+    try:
+        vector_search_service.index_skill_by_slug(result.slug, repository)
+    except Exception:
+        pass
+    return result
 
 
 @app.post("/api/skills/inspect", response_model=SkillUploadResponse)
@@ -221,6 +270,23 @@ async def inspect_skill(
     _: AuthUser = Depends(get_current_user),
 ) -> SkillUploadResponse:
     return await repository.inspect_skill_archive(file)
+
+
+@app.delete("/api/skills/{slug}", response_model=MessageResponse)
+def delete_skill(
+    slug: str,
+    current_user: AuthUser = Depends(get_current_user),
+) -> MessageResponse:
+    repository.delete_skill(slug, current_user)
+    return MessageResponse(message="Skill 已删除")
+
+
+@app.post("/api/skills/{slug}/recommended", response_model=SkillDetail)
+def add_recommended_tag(
+    slug: str,
+    current_user: AuthUser = Depends(get_current_user),
+) -> SkillDetail:
+    return repository.add_recommended_tag(slug, current_user)
 
 
 @app.get("/api/skills/{slug}/archive", response_model=SkillArchiveMetadata)
